@@ -3,7 +3,7 @@ import socket
 
 from bleak import BLEDevice
 from ha_services.mqtt4homeassistant.components.sensor import Sensor
-from ha_services.mqtt4homeassistant.device import MainMqttDevice, MqttDevice
+from ha_services.mqtt4homeassistant.device import MqttDevice
 from paho.mqtt.client import Client
 from victron_ble.devices import BatteryMonitor, Device, SolarCharger
 
@@ -22,7 +22,7 @@ class BaseHandler:
         self,
         *,
         ble_device: BLEDevice,
-        main_mqtt_device: MainMqttDevice,
+        main_mqtt_device: None,
         victron_device: Device,
         mqtt_client: Client,
         user_settings: UserSettings,
@@ -41,7 +41,7 @@ class BaseHandler:
         mac_address = self.ble_device.address
         uid = mac_address.lower().replace(':', '')
         self.device = MqttDevice(
-            main_device=self.main_mqtt_device,
+            main_device=None,
             name=self.ble_device.name,
             uid=uid,
             manufacturer='Victron Energy',
@@ -58,7 +58,7 @@ class BaseHandler:
         if self.device is None:
             self.setup(data_dict=data_dict)
 
-        self.main_mqtt_device.poll_and_publish(self.mqtt_client)
+        # self.main_mqtt_device.poll_and_publish(self.mqtt_client)
 
         self.rssi_sensor.set_state(rssi)
         self.rssi_sensor.publish(self.mqtt_client)
@@ -375,13 +375,13 @@ def get_handler(*, victron_device: Device) -> type[BaseHandler]:
 class VictronMqttDeviceHandler:
     def __init__(self, *, user_settings: UserSettings):
         self.user_settings = user_settings
-        self.main_mqtt_device = MainMqttDevice(
-            name=f'victron-ble2mqtt@{socket.gethostname()}',
-            uid=user_settings.mqtt.main_uid,
-            manufacturer='victron-ble2mqtt',
-            sw_version=victron_ble2mqtt.__version__,
-            config_throttle_sec=user_settings.mqtt.publish_config_throttle_seconds,
-        )
+#        self.main_mqtt_device = MainMqttDevice(
+#            name=f'victron-ble2mqtt@{socket.gethostname()}',
+#            uid=user_settings.mqtt.main_uid,
+#            manufacturer='victron-ble2mqtt',
+#            sw_version=victron_ble2mqtt.__version__,
+#            config_throttle_sec=user_settings.mqtt.publish_config_throttle_seconds,
+#        )
         self.handler_map = {}
 
     def publish(
@@ -402,7 +402,7 @@ class VictronMqttDeviceHandler:
             HandlerClass = get_handler(victron_device=generic_device.victron_device)
             handler = self.handler_map[mac_address] = HandlerClass(
                 ble_device=ble_device,
-                main_mqtt_device=self.main_mqtt_device,
+                main_mqtt_device=None,
                 victron_device=generic_device.victron_device,
                 mqtt_client=mqtt_client,
                 user_settings=self.user_settings,
